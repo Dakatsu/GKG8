@@ -9,9 +9,7 @@ from datetime import datetime
 from influxdb import InfluxDBClient
 
 # Quick variable to disable certain features for local testing purposes.
-# True = we're testing locally; use hardcoded data and don't connect to InfluxDB
-# False = we're using this in the image.
-bIsLocalTest = True
+bIsLocalTest = False
 
 def parseConfig(bUseLocalVariables):
     """Parse the environemnt variables and return them as a dictionary."""
@@ -119,6 +117,7 @@ def main():
 
     userdata = getUser(twitter, data['TWITTER_USER'])
 
+    client = None
     if not bIsLocalTest:
         client = initDBClient(data['INFLUXDB_HOST'],
                               data['INFLUXDB_DATABASE'],

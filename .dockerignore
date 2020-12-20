@@ -1,2 +1,4 @@
 *.yml
 *.yaml
+*.json
+s2i.exe

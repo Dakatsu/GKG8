@@ -1011,7 +1011,7 @@
               "type": "fill"
             }
           ],
-          "measurement": "current_temperature",
+          "measurement": "current_temp",
           "orderByTime": "ASC",
           "policy": "default",
           "refId": "A",
@@ -1034,7 +1034,7 @@
         }
       ],
       "thresholds": "",
-      "title": "Current Listed Count",
+      "title": "Current Listed Count - TEMP_TEST",
       "type": "singlestat",
       "valueFontSize": "200%",
       "valueMaps": [
@@ -1097,7 +1097,7 @@
               "type": "fill"
             }
           ],
-          "measurement": "current_temperature",
+          "measurement": "current_temp",
           "orderByTime": "ASC",
           "policy": "default",
           "refId": "A",
@@ -1122,7 +1122,7 @@
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Listed Count Over Time",
+      "title": "Listed Count Over Time - TEMP_TEST",
       "tooltip": {
         "shared": true,
         "sort": 0,

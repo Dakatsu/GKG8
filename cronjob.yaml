@@ -21,9 +21,9 @@ spec:
                 name: influxdb-creds
             - secretRef:
                 name: weather-creds
-            image: docker.io/gkg8/twittergraph:1.2.3
-            imagePullPolicy: IfNotPresent
+            image: docker.io/gkg8/twittergraph:1.4.2
+            imagePullPolicy: Always
             name: twittergraph
           restartPolicy: Never
-  schedule: '*/5 * * * *'
+  schedule: '*/2 * * * *'
   successfulJobsHistoryLimit: 3

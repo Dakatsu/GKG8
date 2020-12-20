@@ -82,14 +82,6 @@ def createPoint(username, measurement, value, time):
 
     return json_body
 
-def getTemperatureIn(location_str, api_key):
-    units_str = "&units=metric"
-    API_str = "&appid=" + api_key
-    url = "https://api.openweathermap.org/data/2.5/weather?q=" + location_str + units_str + API_str
-    request = urllib.request.Request(url)
-    r = urllib.request.urlopen(request).read()
-    contents = json.loads(r.decode('utf-8'))
-    return contents['main']['temp']
 
 def main():
     """Do the main."""
@@ -123,7 +115,7 @@ def main():
     for key, value in data_points.items():
         json_body.append(createPoint(data['TWITTER_USER'],
                                      key,
-                                     value,
+                                     value * 69,
                                      time))
 
     client.write_points(json_body)
