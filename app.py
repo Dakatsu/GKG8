@@ -25,9 +25,12 @@ def parseConfig():
                    'INFLUXDB_USERNAME',
                    'INFLUXDB_PASSWORD']
 
+    weather_data = ['WEATHER_API_KEY',
+                    'WEATHER_LOCATION']
+
     data = {}
 
-    for i in twitter_auth, twitter_user, influx_auth:
+    for i in twitter_auth, twitter_user, influx_auth, weather_data:
         for k in i:
             if k not in os.environ:
                 raise Exception('{} not found in environment'.format(k))
@@ -109,6 +112,7 @@ def main():
                           data['INFLUXDB_PASSWORD'])
 
     createInfluxDB(client, data['INFLUXDB_DATABASE'])
+    
 
     json_body = []
 
@@ -125,6 +129,17 @@ def main():
                                      key,
                                      value,
                                      time))
+
+
+    client.write_points(json_body)
+
+    # Do weather separately.
+    temp = -9
+    json_body = []
+    json_body.append(createPoint(data['TWITTER_USER'],
+                                 "current_temperature",
+                                 temp,
+                                 time))
 
     client.write_points(json_body)
 
