@@ -8,9 +8,13 @@ import json
 from datetime import datetime
 from influxdb import InfluxDBClient
 
+<<<<<<< Updated upstream
 # Quick variable to disable certain features for local testing purposes.
 bIsLocalTest = False
 
+=======
+##Parse the environment vars from Config+Secret to the code.
+>>>>>>> Stashed changes
 def parseConfig():
     """Parse the environemnt variables and return them as a dictionary."""
     twitter_auth = ['TWITTER_API_KEY',
