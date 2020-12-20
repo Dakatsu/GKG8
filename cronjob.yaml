@@ -19,6 +19,8 @@ spec:
                 name: twitter-creds
             - secretRef:
                 name: influxdb-creds
+            - secretRef:
+                name: weather-creds
             image: docker.io/gkg8/twittergraph:1.2.3
             imagePullPolicy: IfNotPresent
             name: twittergraph

@@ -21,9 +21,12 @@ def parseConfig():
                    'INFLUXDB_USERNAME',
                    'INFLUXDB_PASSWORD']
 
+    weather_data = ['WEATHER_API_KEY',
+                    'WEATHER_LOCATION']
+
     data = {}
 
-    for i in twitter_auth, twitter_user, influx_auth:
+    for i in twitter_auth, twitter_user, influx_auth, weather_data:
         for k in i:
             if k not in os.environ:
                 raise Exception('{} not found in environment'.format(k))
@@ -78,6 +81,14 @@ def createPoint(username, measurement, value, time):
 
     return json_body
 
+def getTemperatureIn(location_str, api_key):
+    units_str = "&units=metric"
+    API_str = "&appid=" + api_key
+    url = "https://api.openweathermap.org/data/2.5/weather?q=" + location_str + units_str + API_str
+    request = urllib.request.Request(url)
+    r = urllib.request.urlopen(request).read()
+    contents = json.loads(r.decode('utf-8'))
+    return contents['main']['temp']
 
 def main():
     """Do the main."""
@@ -101,14 +112,17 @@ def main():
     json_body = []
 
     # TODO: Make this a secret variable in the environment.
-    weather_API_key = "8a3c4c852d112b89543a1174dc283e66"
+    # weather_api_key = "8a3c4c852d112b89543a1174dc283e66"
+    current_temp = getTemperatureIn(data['WEATHER_LOCATION'],data['WEATHER_API_KEY'])
 
     data_points = {
-        "followers_count": userdata.followers_count * 9,
-        "friends_count": userdata.friends_count * 9,
-        "listed_count": userdata.listed_count * 9,
-        "favourites_count": userdata.favourites_count * 9,
-        "statuses_count": userdata.statuses_count * 9
+        "followers_count": userdata.followers_count,
+        "friends_count": userdata.friends_count,
+        "listed_count": userdata.listed_count,
+        ##TEST
+        ##"favourites_count": userdata.favourites_count,
+        "favourites_count": current_temp,
+        "statuses_count": userdata.statuses_count
     }
 
     for key, value in data_points.items():
@@ -116,6 +130,11 @@ def main():
                                      key,
                                      value,
                                      time))
+
+    json_body.append(createPoint(data['WEATHER_LOCATION'],
+                                 "current_temp",
+                                 int(current_temp),
+                                 time))
 
     client.write_points(json_body)
 
