@@ -9,6 +9,8 @@ from datetime import datetime
 from influxdb import InfluxDBClient
 
 # Quick variable to disable certain features for local testing purposes.
+# True = we're testing locally; use hardcoded data and don't connect to InfluxDB
+# False = we're using this in the image.
 bIsLocalTest = True
 
 def parseConfig(bUseLocalVariables):
