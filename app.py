@@ -100,6 +100,9 @@ def main():
 
     json_body = []
 
+    # TODO: Make this a secret variable in the environment.
+    weather_API_key = "8a3c4c852d112b89543a1174dc283e66"
+
     data_points = {
         "followers_count": userdata.followers_count * 9,
         "friends_count": userdata.friends_count * 9,
