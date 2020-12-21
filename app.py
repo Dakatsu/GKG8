@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 
+## Go Kubernetes Go! - Group 8
+## Concordia University, 2020-12-20
+## Code derived from the below tutorial:
+##   https://opensource.com/article/19/2/deploy-influxdb-grafana-kubernetes
+## Alterations made by group members.
+
 import os
 import sys
 import tweepy
 import urllib.request
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from influxdb import InfluxDBClient
 
 <<<<<<< Updated upstream
@@ -22,7 +28,8 @@ def parseConfig():
                     'TWITTER_ACCESS_TOKEN',
                     'TWITTER_ACCESS_SECRET']
 
-    twitter_user = ['TWITTER_USER']
+    twitter_vars = ['TWITTER_USER',
+                    'TWITTER_QUERY']
 
     influx_auth = ['INFLUXDB_HOST',
                    'INFLUXDB_DATABASE',
@@ -34,7 +41,7 @@ def parseConfig():
 
     data = {}
 
-    for i in twitter_auth, twitter_user, influx_auth, weather_data:
+    for i in twitter_auth, twitter_vars, influx_auth, weather_data:
         for k in i:
             if k not in os.environ:
                 raise Exception('{} not found in environment'.format(k))
@@ -90,26 +97,20 @@ def createPoint(username, measurement, value, time):
     return json_body
 
 def getTemperatureIn(location_str, api_key):
-    units_str = "&units=metric"
-    API_str = "&appid=" + api_key
-    url = "https://api.openweathermap.org/data/2.5/weather?q=" + location_str + units_str + API_str
+    url = "https://api.openweathermap.org/data/2.5/weather?q=" + location_str + "&units=metric" + "&appid=" + api_key
     request = urllib.request.Request(url)
     r = urllib.request.urlopen(request).read()
     contents = json.loads(r.decode('utf-8'))
-    return contents['main']['temp']
+    value = contents['main']['temp']
+    return value
 
 def main():
     """Do the main."""
-    data = parseConfig()
     time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    print("Script starting at " + str(time) + " UTC.")
+    data = parseConfig()
 
-    twitter = twitterApi(data['TWITTER_API_KEY'],
-                         data['TWITTER_API_SECRET'],
-                         data['TWITTER_ACCESS_TOKEN'],
-                         data['TWITTER_ACCESS_SECRET'])
-
-    userdata = getUser(twitter, data['TWITTER_USER'])
-
+    # Connect to InfluxDB
     client = initDBClient(data['INFLUXDB_HOST'],
                           data['INFLUXDB_DATABASE'],
                           data['INFLUXDB_USERNAME'],
@@ -117,35 +118,74 @@ def main():
 
     createInfluxDB(client, data['INFLUXDB_DATABASE'])
     
+    # Attempt to record Twitter stats.
+    print("Attempting to retrieve Twitter stats.")
+    try:
+        twitter = twitterApi(data['TWITTER_API_KEY'],
+                         data['TWITTER_API_SECRET'],
+                         data['TWITTER_ACCESS_TOKEN'],
+                         data['TWITTER_ACCESS_SECRET'])
+                         
+        # Get stats for our tracked Twitter user.
+        userdata = getUser(twitter, data['TWITTER_USER'])
+        
+        json_body = []
+        data_points = {
+            "followers_count": userdata.followers_count,
+            "friends_count": userdata.friends_count,
+            "listed_count": userdata.listed_count,
+            "favourites_count": userdata.favourites_count,
+            "statuses_count": userdata.statuses_count
+        }
 
-    json_body = []
+        for key, value in data_points.items():
+            json_body.append(createPoint(data['TWITTER_USER'],
+                                         key,
+                                         value,
+                                         time))
+                                         
+        # Get stats for our tracked Twitter query.
+        search_results_tweets = twitter.search(data['TWITTER_QUERY'], count=100, tweet_mode="extended")
+        timeCutoff = datetime.utcnow() - timedelta(minutes = 5)
+        tweet_count = 0
+        tweet_length_sum = 0
+        for tweet in search_results_tweets:
+            if tweet.created_at > timeCutoff:
+                tweet_count = tweet_count + 1
+                tweet_length_sum = tweet_length_sum + len(tweet.full_text)            
+        tweet_length_avg = 0
+        if tweet_count > 0:
+            tweet_length_avg = tweet_length_sum / tweet_count
 
-    data_points = {
-        "followers_count": userdata.followers_count,
-        "friends_count": userdata.friends_count,
-        "listed_count": userdata.listed_count,
-        "favourites_count": userdata.favourites_count,
-        "statuses_count": userdata.statuses_count
-    }
+        data_points = {
+            "tweet_count": tweet_count,
+            "tweet_length_avg": tweet_length_avg
+        }
 
-    for key, value in data_points.items():
-        json_body.append(createPoint(data['TWITTER_USER'],
-                                     key,
-                                     value,
-                                     time))
+        for key, value in data_points.items():
+            json_body.append(createPoint(data['TWITTER_QUERY'],
+                                         key,
+                                         value,
+                                         time))
+        client.write_points(json_body)
+        print("Successfully retrieved Twitter stats.")
+    except Exception as err:
+        print("Could not record Twitter Stats due to an exception: " + str(err))
 
-
-    client.write_points(json_body)
-
-    # Do weather separately.
-    temp = -9
-    json_body = []
-    json_body.append(createPoint(data['TWITTER_USER'],
-                                 "current_temperature",
-                                 temp,
+    # Attempt to record weather stats.
+    print("Attempting to retrieve OpenWeather stats.")
+    try:
+        json_body = []
+        temp = getTemperatureIn(data['WEATHER_LOCATION'],data['WEATHER_API_KEY'])
+        json_body.append(createPoint(data['WEATHER_LOCATION'],
+                                 "temperature",
+                                 float(temp),
                                  time))
-
-    client.write_points(json_body)
+        client.write_points(json_body)
+        print("Successfully retrieved OpenWeather stats.")
+    except Exception as err:
+        print("Could not record OpenWeather Stats due to an exception: " + str(err))
+    print("Scripted finished.")
 
 
 if __name__ == "__main__":
