@@ -1,0 +1,187 @@
+minikube start
+
+// INFLUXDB
+kubectl delete deployment influxdb
+kubectl create deployment influxdb --image=docker.io/influxdb:1.6.4
+// Should be visible with these commands.
+kubectl get deployment
+kubectl describe deployment influxdb
+// Delete secret (if it still exists).
+kubectl delete secret influxdb-creds
+// Add secret.
+kubectl create secret generic influxdb-creds --from-literal=INFLUXDB_DATABASE=twittergraph --from-literal=INFLUXDB_USERNAME=admin --from-literal=INFLUXDB_PASSWORD=admin --from-literal=INFLUXDB_HOST=influxdb
+// Should be visible iwth this command.
+kubectl describe secret influxdb-creds
+// Create PVC (after deleting it if it already exists). Navigate to local 
+kubectl delete -f pvc.yaml
+kubectl create -f pvc.yaml
+// Check PVC
+kubectl get pvc
+// Edit the deployment (see below).
+kubectl edit deployment influxdb
+// Expose influxdb as a service (delete it first if need be).
+kubectl delete service influxdb
+kubectl expose deployment influxdb --port=8086 --target-port=8086 --protocol=TCP --type=ClusterIP
+
+// GRAFANA
+// Create Grafana deployment.
+kubectl delete deployment grafana
+kubectl create deployment grafana --image=docker.io/grafana/grafana:5.3.2
+// Create secret info for Grafana.
+kubectl delete secret grafana-creds
+kubectl create secret generic grafana-creds --from-literal=GF_SECURITY_ADMIN_USER=tyw930422 --from-literal=GF_SECURITY_ADMIN_PASSWORD=kubernetesGKG8
+// Navigate to twitterGraph folder and run this command to create the configmap. Delete it if it already exists first.
+kubectl delete configmap grafana-config
+kubectl create configmap grafana-config --from-file=influxdb-datasource.yml=influxdb-datasource.yml --from-file=grafana-dashboard-provider.yml=grafana-dashboard-provider.yml --from-file=twittergraph-dashboard.json=twittergraph-dashboard.json
+// Can verify configmap.
+kubectl describe configmap grafana-config
+// Delete and reexpose Grafana.
+kubectl delete service grafana
+kubectl expose deployment grafana --type=LoadBalancer --port=80 --target-port=3000 --protocol=TCP
+
+// Create twitter credentials
+kubectl delete secret twitter-creds
+kubectl create secret generic twitter-creds --from-literal TWITTER_ACCESS_SECRET=zc6YU0ERb9w82oR0L1ngYm1Vhfh2OH9qiKDqjxN2qzbuk --from-literal TWITTER_ACCESS_TOKEN=1104535698433077250-QA2uxhGZ46RdQX43Bi3pNPUYqYpIvV --from-literal TWITTER_API_KEY=4b2LTskX9vEUrxDL5xXIEngYK --from-literal TWITTER_API_SECRET=Fax5Lid8OkbxVymNPqRbRtTaFOPNxXX5thFTC1VLDgXC8HCFQ6
+kubectl delete secret twitter-vars
+kubectl create secret generic twitter-vars --from-literal TWITTER_USER=NPR --from-literal TWITTER_QUERY=#Canada
+// Navigate to where you created the cronjob.yaml and reupload it.
+kubectl delete -f cronjob.yaml
+kubectl create -f cronjob.yaml
+
+// Weather credentials.
+kubectl delete secret weather-creds
+kubectl create secret generic weather-creds --from-literal WEATHER_API_KEY=8a3c4c852d112b89543a1174dc283e66 --from-literal WEATHER_LOCATION=Montreal,QC,CA
+
+// Build and deploy new image
+docker login -u "gkg8" -p "kubernetesGKG8" docker.io
+.\s2i build https://github.com/Dakatsu/GKG8 centos/python-36-centos7 twittergraph:1.2.3
+docker images
+docker tag <imageID> gkg8/twittergraph:1.2.3
+docker push gkg8/twittergraph:1.2.3
+
+// How to "restart" Grafana (for dashboard changes to take effect)
+kubectl scale deployment grafana --replicas=0
+kubectl scale deployment grafana --replicas=1
+
+// CONTENTS OF INFLUXDB CONFIG SPEC SECTION
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: influxdb
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: influxdb
+    spec:
+      containers:
+      - envFrom:
+        - secretRef:
+            name: influxdb-creds
+        image: docker.io/influxdb:1.6.4
+        imagePullPolicy: IfNotPresent
+        name: influxdb
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/lib/influxdb
+          name: var-lib-influxdb
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: var-lib-influxdb
+        persistentVolumeClaim:
+          claimName: influxdb
+// END CONTENTS
+
+// CONTENTS OF GRAFANA CONFIG SPEC SECTION
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: grafana
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - image: docker.io/grafana/grafana:5.3.2
+        imagePullPolicy: IfNotPresent
+        name: grafana
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/grafana/provisioning/datasources/influxdb-datasource.yml
+          name: grafana-config
+          readOnly: true
+          subPath: influxdb-datasource.yml
+        - mountPath: /etc/grafana/provisioning/dashboards/grafana-dashboard-provider.yml
+          name: grafana-config
+          readOnly: true
+          subPath: grafana-dashboard-provider.yml
+        - mountPath: /var/lib/grafana/dashboards/twittergraph-dashboard.json
+          name: grafana-config
+          readOnly: true
+          subPath: twittergraph-dashboard.json
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          name: grafana-config
+        name: grafana-config
+// END CONTENTS
+
+// FULL TEXT OF CRONJOB.YAML (basically identical to tutorial)
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  labels:
+    app: twittergraph
+  name: twittergraph
+spec:
+  concurrencyPolicy: Replace
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+    spec:
+      template:
+        metadata:
+        spec:
+          containers:
+          - envFrom:
+            - secretRef:
+                name: twitter-creds
+            - secretRef:
+                name: influxdb-creds
+            image: docker.io/gkg8/twittergraph:1.0
+            imagePullPolicy: Always
+            name: twittergraph
+          restartPolicy: Never
+  schedule: '*/5 * * * *'
+  successfulJobsHistoryLimit: 3
+// END CONTENTS
