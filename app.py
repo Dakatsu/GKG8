@@ -97,14 +97,14 @@ def getTemperatureIn(location_str, api_key):
     request = urllib.request.Request(url)
     r = urllib.request.urlopen(request).read()
     contents = json.loads(r.decode('utf-8'))
-    print(contents)
     value = contents['main']['temp']
     return value
 
 def main():
     """Do the main."""
-    data = parseConfig()
     time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    print("Script starting at " + str(time) + " UTC.")
+    data = parseConfig()
 
     # Connect to InfluxDB
     client = initDBClient(data['INFLUXDB_HOST'],
@@ -115,6 +115,7 @@ def main():
     createInfluxDB(client, data['INFLUXDB_DATABASE'])
     
     # Attempt to record Twitter stats.
+    print("Attempting to retrieve Twitter stats.")
     try:
         twitter = twitterApi(data['TWITTER_API_KEY'],
                          data['TWITTER_API_SECRET'],
@@ -163,10 +164,12 @@ def main():
                                          value,
                                          time))
         client.write_points(json_body)
+        print("Successfully retrieved Twitter stats.")
     except Exception as err:
         print("Could not record Twitter Stats due to an exception: " + str(err))
 
     # Attempt to record weather stats.
+    print("Attempting to retrieve OpenWeather stats.")
     try:
         json_body = []
         temp = getTemperatureIn(data['WEATHER_LOCATION'],data['WEATHER_API_KEY'])
@@ -175,8 +178,10 @@ def main():
                                  float(temp),
                                  time))
         client.write_points(json_body)
+        print("Successfully retrieved OpenWeather stats.")
     except Exception as err:
         print("Could not record OpenWeather Stats due to an exception: " + str(err))
+    print("Scripted finished.")
 
 
 if __name__ == "__main__":
