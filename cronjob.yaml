@@ -23,7 +23,7 @@ spec:
                 name: weather-creds
             - secretRef:
                 name: twitter-vars
-            image: docker.io/gkg8/twittergraph:1.4.2
+            image: docker.io/gkg8/twittergraph:1.4.3
             imagePullPolicy: Always
             name: twittergraph
           restartPolicy: Never

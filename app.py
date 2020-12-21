@@ -149,17 +149,23 @@ def main():
         timeCutoff = datetime.utcnow() - timedelta(minutes = 5)
         tweet_count = 0
         tweet_length_sum = 0
+        tweet_num_hashtags_sum = 0
         for tweet in search_results_tweets:
             if tweet.created_at > timeCutoff:
-                tweet_count = tweet_count + 1
-                tweet_length_sum = tweet_length_sum + len(tweet.full_text)            
+                tweet_count += 1
+                tweet_length_sum += + len(tweet.full_text)
+                if 'entities' in tweet._json and 'hashtags' in tweet._json['entities']:
+                    tweet_num_hashtags_sum += len(tweet._json['entities']['hashtags'])
         tweet_length_avg = 0
+        tweet_num_hashtags_avg = 0
         if tweet_count > 0:
             tweet_length_avg = tweet_length_sum / tweet_count
+            tweet_num_hashtags_avg = tweet_num_hashtags_sum / tweet_count
 
         data_points = {
             "tweet_count": tweet_count,
-            "tweet_length_avg": tweet_length_avg
+            "tweet_length_avg": tweet_length_avg,
+            "tweet_num_hashtags_avg": tweet_num_hashtags_avg
         }
 
         for key, value in data_points.items():
